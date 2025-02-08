@@ -1,164 +1,148 @@
+import { useState, useEffect } from 'react';
 import Grid from '@mui/material/Unstable_Grid2';
 import Typography from '@mui/material/Typography';
+import { TrophyIcon } from 'src/components/icons/trophy-icon';
+import { CheckmarkIcon } from 'src/components/icons/checkmark-icon';
+import { WarningIcon } from 'src/components/icons/warning-icon';
+import { ErrorIcon } from 'src/components/icons/error-icon';
 
-import { _tasks, _posts, _timeline } from 'src/_mock';
+import { getCurrentWeekStats, type WeeklyStats } from 'src/services/api';
 import { DashboardContent } from 'src/layouts/dashboard';
 
-import { AnalyticsNews } from '../analytics-news';
-import { AnalyticsTasks } from '../analytics-tasks';
 import { AnalyticsCurrentVisits } from '../analytics-current-visits';
-import { AnalyticsOrderTimeline } from '../analytics-order-timeline';
 import { AnalyticsWebsiteVisits } from '../analytics-website-visits';
 import { AnalyticsWidgetSummary } from '../analytics-widget-summary';
-import { AnalyticsTrafficBySite } from '../analytics-traffic-by-site';
-import { AnalyticsCurrentSubject } from '../analytics-current-subject';
-import { AnalyticsConversionRates } from '../analytics-conversion-rates';
-
-// ----------------------------------------------------------------------
+import { AnalyticsWidgetSummaryPerformer } from '../analytics-widget-summary-performer';
 
 export function OverviewAnalyticsView() {
-  return (
-    <DashboardContent maxWidth="xl">
-      <Typography variant="h4" sx={{ mb: { xs: 3, md: 5 } }}>
-        Hi, Welcome back 👋
-      </Typography>
+	const [stats, setStats] = useState<WeeklyStats | null>(null);
+	const [loading, setLoading] = useState(true);
 
-      <Grid container spacing={3}>
-        <Grid xs={12} sm={6} md={3}>
-          <AnalyticsWidgetSummary
-            title="Weekly sales"
-            percent={2.6}
-            total={714000}
-            icon={<img alt="icon" src="/assets/icons/glass/ic-glass-bag.svg" />}
-            chart={{
-              categories: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'],
-              series: [22, 8, 35, 50, 82, 84, 77, 12],
-            }}
-          />
-        </Grid>
+	useEffect(() => {
+		const fetchStats = async () => {
+			try {
+				const data = await getCurrentWeekStats();
+				setStats(data);
+			} catch (error) {
+				console.error('Error:', error);
+			} finally {
+				setLoading(false);
+			}
+		};
 
-        <Grid xs={12} sm={6} md={3}>
-          <AnalyticsWidgetSummary
-            title="New users"
-            percent={-0.1}
-            total={1352831}
-            color="secondary"
-            icon={<img alt="icon" src="/assets/icons/glass/ic-glass-users.svg" />}
-            chart={{
-              categories: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'],
-              series: [56, 47, 40, 62, 73, 30, 23, 54],
-            }}
-          />
-        </Grid>
+		fetchStats();
+	}, []);
 
-        <Grid xs={12} sm={6} md={3}>
-          <AnalyticsWidgetSummary
-            title="Purchase orders"
-            percent={2.8}
-            total={1723315}
-            color="warning"
-            icon={<img alt="icon" src="/assets/icons/glass/ic-glass-buy.svg" />}
-            chart={{
-              categories: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'],
-              series: [40, 70, 50, 28, 70, 75, 7, 64],
-            }}
-          />
-        </Grid>
+	if (loading) return <div>Loading...</div>;
+	if (!stats) return <div>No data available</div>;
 
-        <Grid xs={12} sm={6} md={3}>
-          <AnalyticsWidgetSummary
-            title="Messages"
-            percent={3.6}
-            total={234}
-            color="error"
-            icon={<img alt="icon" src="/assets/icons/glass/ic-glass-message.svg" />}
-            chart={{
-              categories: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'],
-              series: [56, 30, 23, 54, 47, 40, 62, 73],
-            }}
-          />
-        </Grid>
+	const developers = Object.values(stats.developers_rankings);
+	const topPerformer = developers[0] || { name: 'N/A', average_score: 0 };
 
-        <Grid xs={12} md={6} lg={4}>
-          <AnalyticsCurrentVisits
-            title="Current visits"
-            chart={{
-              series: [
-                { label: 'America', value: 3500 },
-                { label: 'Asia', value: 2500 },
-                { label: 'Europe', value: 1500 },
-                { label: 'Africa', value: 500 },
-              ],
-            }}
-          />
-        </Grid>
+  
+	return (
+		<DashboardContent maxWidth="xl">
+			<Typography variant="h4" sx={{ mb: { xs: 3, md: 5 } }}>
+				Hi, Mobisians 👋
+			</Typography>
 
-        <Grid xs={12} md={6} lg={8}>
-          <AnalyticsWebsiteVisits
-            title="Website visits"
-            subheader="(+43%) than last year"
-            chart={{
-              categories: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep'],
-              series: [
-                { name: 'Team A', data: [43, 33, 22, 37, 67, 68, 37, 24, 55] },
-                { name: 'Team B', data: [51, 70, 47, 67, 40, 37, 24, 70, 24] },
-              ],
-            }}
-          />
-        </Grid>
+			<Grid container spacing={3}>
+				{/* Top Performer Widget */}
+				<Grid xs={12} sm={6} md={3}>
+					<AnalyticsWidgetSummary
+						title="Top Performer"
+						total={stats.top_performers?.[0]?.name}
+						percent={topPerformer.average_score ?? 0}
+						icon={<TrophyIcon />}
+						color="success"
+						chart={{
+							series: developers.map(d => d.average_score ?? 0),
+							categories: developers.map(d => d.name),
+						}}
+					/>
+				</Grid>
 
-        <Grid xs={12} md={6} lg={8}>
-          <AnalyticsConversionRates
-            title="Conversion rates"
-            subheader="(+43%) than last year"
-            chart={{
-              categories: ['Italy', 'Japan', 'China', 'Canada', 'France'],
-              series: [
-                { name: '2022', data: [44, 55, 41, 64, 22] },
-                { name: '2023', data: [53, 32, 33, 52, 13] },
-              ],
-            }}
-          />
-        </Grid>
+				{/* PR's Reviewed Widget */}
+				<Grid xs={12} sm={6} md={3}>
+					<AnalyticsWidgetSummary
+						title="PR's Reviewed"
+						total={stats.summary.total_reviews}
+						percent={stats.summary.team_average_score}
+						icon={<CheckmarkIcon />}
+						color="info"
+						chart={{
+							series: developers.map(d => d.total_reviews),
+							categories: developers.map(d => d.name),
+						}}
+					/>
+				</Grid>
 
-        <Grid xs={12} md={6} lg={4}>
-          <AnalyticsCurrentSubject
-            title="Current subject"
-            chart={{
-              categories: ['English', 'History', 'Physics', 'Geography', 'Chinese', 'Math'],
-              series: [
-                { name: 'Series 1', data: [80, 50, 30, 40, 100, 20] },
-                { name: 'Series 2', data: [20, 30, 40, 80, 20, 80] },
-                { name: 'Series 3', data: [44, 76, 78, 13, 43, 10] },
-              ],
-            }}
-          />
-        </Grid>
+				{/* Quality Issues Widget */}
+				<Grid xs={12} sm={6} md={3}>
+					<AnalyticsWidgetSummary
+						title="Quality Issues"
+						total={stats.summary?.total_quality_issues || 0}
+						percent={stats.summary?.team_average_score || 0}
+						icon={<WarningIcon />}
+						color="warning"
+						chart={{
+							series: stats.summary?.most_common_issues.map(i => i.percentage) || [],
+							categories: stats.summary?.most_common_issues.map(i => i.issue) || [],
+						}}
+					/>
+				</Grid>
 
-        <Grid xs={12} md={6} lg={8}>
-          <AnalyticsNews title="News" list={_posts.slice(0, 5)} />
-        </Grid>
+				{/* Critical Issues Widget */}
+				<Grid xs={12} sm={6} md={3}>
+					<AnalyticsWidgetSummary
+						title="Critical Issues"
+						total={stats.summary?.total_critical_issues || 0}
+						percent={stats.summary?.team_average_score || 0}
+						icon={<ErrorIcon />}
+						color="error"
+						chart={{
+							series: stats.summary?.most_common_issues.map(i => i.percentage) || [],
+							categories: stats.summary?.most_common_issues.map(i => i.issue) || [],
+						}}
+					/>
+				</Grid>
 
-        <Grid xs={12} md={6} lg={4}>
-          <AnalyticsOrderTimeline title="Order timeline" list={_timeline} />
-        </Grid>
+				{/* Common Issues Chart */}
+				<Grid xs={12} md={6} lg={4}>
+					<AnalyticsCurrentVisits
+						title="Common Issues"
+						chart={{
+							series: stats.summary?.most_common_issues.map(i => ({
+								label: i.issue,
+								value: i.percentage,
+							})) || [],
+						}}
+					/>
+				</Grid>
 
-        <Grid xs={12} md={6} lg={4}>
-          <AnalyticsTrafficBySite
-            title="Traffic by site"
-            list={[
-              { value: 'facebook', label: 'Facebook', total: 323234 },
-              { value: 'google', label: 'Google', total: 341212 },
-              { value: 'linkedin', label: 'Linkedin', total: 411213 },
-              { value: 'twitter', label: 'Twitter', total: 443232 },
-            ]}
-          />
-        </Grid>
+        
 
-        <Grid xs={12} md={6} lg={8}>
-          <AnalyticsTasks title="Tasks" list={_tasks} />
-        </Grid>
-      </Grid>
-    </DashboardContent>
-  );
+				{/* PR Dashboard Chart */}
+				<Grid xs={12} md={6} lg={8}>
+					<AnalyticsWebsiteVisits
+						title="PR Dashboard"
+						subheader={`Team Average Score: ${stats.summary?.team_average_score.toFixed(2) || 'N/A'}`}
+						chart={{
+							categories: developers.map(d => d.name),
+							series: [
+								{
+									name: "Reviews",
+									data: developers.map((developer) => developer.total_reviews),
+								},
+								{
+									name: "Score",
+									data: developers.map((developer) => developer.average_score ?? 0),
+								},
+							],
+						}}
+					/>
+				</Grid>
+			</Grid>
+		</DashboardContent>
+	);
 }

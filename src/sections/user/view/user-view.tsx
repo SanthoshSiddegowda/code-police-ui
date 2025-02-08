@@ -1,185 +1,155 @@
-import { useState, useCallback } from 'react';
-
+import React, { useState, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
-import Button from '@mui/material/Button';
+import Stack from '@mui/material/Stack';
+import Collapse from '@mui/material/Collapse';
+import TableRow from '@mui/material/TableRow';
 import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
 import Typography from '@mui/material/Typography';
+import IconButton from '@mui/material/IconButton';
 import TableContainer from '@mui/material/TableContainer';
-import TablePagination from '@mui/material/TablePagination';
+import Chip from '@mui/material/Chip';
 
-import { _users } from 'src/_mock';
+import { getCurrentWeekStats, type WeeklyStats } from 'src/services/api';
 import { DashboardContent } from 'src/layouts/dashboard';
-
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 
-import { TableNoData } from '../table-no-data';
-import { UserTableRow } from '../user-table-row';
-import { UserTableHead } from '../user-table-head';
-import { TableEmptyRows } from '../table-empty-rows';
-import { UserTableToolbar } from '../user-table-toolbar';
-import { emptyRows, applyFilter, getComparator } from '../utils';
-
-import type { UserProps } from '../user-table-row';
-
-// ----------------------------------------------------------------------
-
 export function UserView() {
-  const table = useTable();
+  const [stats, setStats] = useState<WeeklyStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [openRows, setOpenRows] = useState<{ [key: string]: boolean }>({});
 
-  const [filterName, setFilterName] = useState('');
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const data = await getCurrentWeekStats();
+        setStats(data);
+      } catch (error) {
+        console.error('Error:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const dataFiltered: UserProps[] = applyFilter({
-    inputData: _users,
-    comparator: getComparator(table.order, table.orderBy),
-    filterName,
-  });
+    fetchStats();
+  }, []);
 
-  const notFound = !dataFiltered.length && !!filterName;
+  const toggleRow = (name: string) => {
+    setOpenRows(prev => ({ ...prev, [name]: !prev[name] }));
+  };
+
+  if (loading) return <div>Loading...</div>;
+  if (!stats?.developers_rankings) return <div>No data available</div>;
+
+  const developers = Object.values(stats.developers_rankings);
 
   return (
     <DashboardContent>
+      <Typography variant="h4" sx={{ mb: 3 }}>
+        Developer Performance Analysis
+      </Typography>
       
       <Card>
-        <UserTableToolbar
-          numSelected={table.selected.length}
-          filterName={filterName}
-          onFilterName={(event: React.ChangeEvent<HTMLInputElement>) => {
-            setFilterName(event.target.value);
-            table.onResetPage();
-          }}
-        />
-
         <Scrollbar>
-          <TableContainer sx={{ overflow: 'unset' }}>
-            <Table sx={{ minWidth: 800 }}>
-              <UserTableHead
-                order={table.order}
-                orderBy={table.orderBy}
-                rowCount={_users.length}
-                numSelected={table.selected.length}
-                onSort={table.onSort}
-                onSelectAllRows={(checked) =>
-                  table.onSelectAllRows(
-                    checked,
-                    _users.map((user) => user.id)
-                  )
-                }
-                headLabel={[
-                  { id: 'name', label: 'Name' },
-                  { id: 'company', label: 'Company' },
-                  { id: 'role', label: 'Role' },
-                  { id: 'isVerified', label: 'Verified', align: 'center' },
-                  { id: 'status', label: 'Status' },
-                  { id: '' },
-                ]}
-              />
+          <TableContainer>
+            <Table>
               <TableBody>
-                {dataFiltered
-                  .slice(
-                    table.page * table.rowsPerPage,
-                    table.page * table.rowsPerPage + table.rowsPerPage
-                  )
-                  .map((row) => (
-                    <UserTableRow
-                      key={row.id}
-                      row={row}
-                      selected={table.selected.includes(row.id)}
-                      onSelectRow={() => table.onSelectRow(row.id)}
-                    />
-                  ))}
+                {developers.map((developer) => (
+                  <React.Fragment key={developer.name}>
+                    <TableRow hover>
+                      <TableCell padding="checkbox">
+                        <IconButton size="small" onClick={() => toggleRow(developer.name)}>
+                          <Iconify
+                            icon={openRows[developer.name] ? 'eva:arrow-ios-upward-fill' : 'eva:arrow-ios-downward-fill'}
+                          />
+                        </IconButton>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="subtitle2">{developer.name}</Typography>
+                      </TableCell>
+                      <TableCell>Score: {developer.average_score || 'N/A'}</TableCell>
+                      <TableCell>Reviews: {developer.total_reviews}</TableCell>
+                      <TableCell>
+                        <Stack direction="row" spacing={1}>
+                          <Chip 
+                            label={`Quality Issues: ${developer.total_quality_issues}`} 
+                            color="warning" 
+                            size="small"
+                          />
+                          <Chip 
+                            label={`Critical Issues: ${developer.total_critical_issues}`} 
+                            color="error" 
+                            size="small"
+                          />
+                        </Stack>
+                      </TableCell>
+                    </TableRow>
 
-                <TableEmptyRows
-                  height={68}
-                  emptyRows={emptyRows(table.page, table.rowsPerPage, _users.length)}
-                />
+                    <TableRow>
+                      <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={6}>
+                        <Collapse in={openRows[developer.name]} timeout="auto" unmountOnExit>
+                          <Box sx={{ margin: 2 }}>
+                            <Stack spacing={3}>
+                              <Box>
+                                <Typography variant="subtitle2" color="primary" gutterBottom>
+                                  Strengths
+                                </Typography>
+                                <Typography variant="body2">
+                                  {developer.strength}
+                                </Typography>
+                              </Box>
 
-                {notFound && <TableNoData searchQuery={filterName} />}
+                              <Box>
+                                <Typography variant="subtitle2" color="warning.main" gutterBottom>
+                                  Areas for Improvement
+                                </Typography>
+                                <Typography variant="body2">
+                                  {developer.areas_for_improvement}
+                                </Typography>
+                              </Box>
+
+                              <Box>
+                                <Typography variant="subtitle2" color="info.main" gutterBottom>
+                                  Suggested Resources
+                                </Typography>
+                                <ul>
+                                  {developer.suggested_resources.map((resource, index) => (
+                                    <li key={index}>
+                                      <Typography variant="body2">{resource}</Typography>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </Box>
+
+                              <Box>
+                                <Typography variant="subtitle2" color="success.main" gutterBottom>
+                                  Learning References
+                                </Typography>
+                                <ul>
+                                  {developer.learning_reference_links.map((link, index) => (
+                                    <li key={index}>
+                                      <a href={link} target="_blank" rel="noopener noreferrer">
+                                        {link}
+                                      </a>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </Box>
+                            </Stack>
+                          </Box>
+                        </Collapse>
+                      </TableCell>
+                    </TableRow>
+                  </React.Fragment>
+                ))}
               </TableBody>
             </Table>
           </TableContainer>
         </Scrollbar>
-
-        <TablePagination
-          component="div"
-          page={table.page}
-          count={_users.length}
-          rowsPerPage={table.rowsPerPage}
-          onPageChange={table.onChangePage}
-          rowsPerPageOptions={[5, 10, 25]}
-          onRowsPerPageChange={table.onChangeRowsPerPage}
-        />
       </Card>
     </DashboardContent>
   );
-}
-
-// ----------------------------------------------------------------------
-
-export function useTable() {
-  const [page, setPage] = useState(0);
-  const [orderBy, setOrderBy] = useState('name');
-  const [rowsPerPage, setRowsPerPage] = useState(5);
-  const [selected, setSelected] = useState<string[]>([]);
-  const [order, setOrder] = useState<'asc' | 'desc'>('asc');
-
-  const onSort = useCallback(
-    (id: string) => {
-      const isAsc = orderBy === id && order === 'asc';
-      setOrder(isAsc ? 'desc' : 'asc');
-      setOrderBy(id);
-    },
-    [order, orderBy]
-  );
-
-  const onSelectAllRows = useCallback((checked: boolean, newSelecteds: string[]) => {
-    if (checked) {
-      setSelected(newSelecteds);
-      return;
-    }
-    setSelected([]);
-  }, []);
-
-  const onSelectRow = useCallback(
-    (inputValue: string) => {
-      const newSelected = selected.includes(inputValue)
-        ? selected.filter((value) => value !== inputValue)
-        : [...selected, inputValue];
-
-      setSelected(newSelected);
-    },
-    [selected]
-  );
-
-  const onResetPage = useCallback(() => {
-    setPage(0);
-  }, []);
-
-  const onChangePage = useCallback((event: unknown, newPage: number) => {
-    setPage(newPage);
-  }, []);
-
-  const onChangeRowsPerPage = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      setRowsPerPage(parseInt(event.target.value, 10));
-      onResetPage();
-    },
-    [onResetPage]
-  );
-
-  return {
-    page,
-    order,
-    onSort,
-    orderBy,
-    selected,
-    rowsPerPage,
-    onSelectRow,
-    onResetPage,
-    onChangePage,
-    onSelectAllRows,
-    onChangeRowsPerPage,
-  };
 }
